@@ -10,6 +10,7 @@ export interface Category {
 
 export interface Expense {
   id: number;
+  type: 'expense' | 'income';
   amount: number;
   description: string | null;
   category_id: number | null;
@@ -21,6 +22,16 @@ export interface MonthlyBudget {
   id: number;
   month: string;
   amount: number;
+}
+
+export interface MonthSummary {
+  totalExpenses: number;
+  totalIncome: number;
+  balance: number;
+  byCategory: { category_name: string; total: number; color: string }[];
+  expenseCount: number;
+  dailyAverage: number;
+  topExpenses: Expense[];
 }
 
 const KEYS = {
@@ -62,6 +73,21 @@ async function getNextId(counterKey: string): Promise<number> {
   return next;
 }
 
+function getMonthBounds(month: string): { start: string; end: string } {
+  const [y, m] = month.split('-').map(Number);
+  const start = `${month}-01`;
+  const end = new Date(y, m, 1).toISOString().slice(0, 10);
+  return { start, end };
+}
+
+function getAll(raw: string | null): Expense[] {
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function saveAll(items: Expense[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.expenses, JSON.stringify(items));
+}
+
 export const db = {
   async init(): Promise<void> {
     await seedIfEmpty();
@@ -73,39 +99,105 @@ export const db = {
   },
 
   async getExpenses({ month }: { month: string }): Promise<Expense[]> {
-    const raw = await AsyncStorage.getItem(KEYS.expenses);
-    const all: Expense[] = raw ? JSON.parse(raw) : [];
-    const monthStart = `${month}-01`;
-    const [y, m] = month.split('-').map(Number);
-    const nextMonth = new Date(y, m, 1).toISOString().slice(0, 10);
+    const all = getAll(await AsyncStorage.getItem(KEYS.expenses));
+    const { start, end } = getMonthBounds(month);
     return all
-      .filter((e) => e.date >= monthStart && e.date < nextMonth)
+      .filter((e) => e.date >= start && e.date < end)
       .sort((a, b) => b.date.localeCompare(a.date));
   },
 
   async getAllExpenses(): Promise<Expense[]> {
-    const raw = await AsyncStorage.getItem(KEYS.expenses);
-    return raw ? JSON.parse(raw) : [];
+    return getAll(await AsyncStorage.getItem(KEYS.expenses));
+  },
+
+  async searchExpenses({ month, query }: { month: string; query: string }): Promise<Expense[]> {
+    const all = getAll(await AsyncStorage.getItem(KEYS.expenses));
+    const { start, end } = getMonthBounds(month);
+    const q = query.toLowerCase();
+    return all
+      .filter((e) => e.date >= start && e.date < end)
+      .filter((e) => {
+        if (!q) return true;
+        return (
+          e.description?.toLowerCase().includes(q) ||
+          String(e.amount).includes(q)
+        );
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  async getMonthSummary(month: string): Promise<MonthSummary> {
+    const [expenses, categories] = await Promise.all([
+      this.getExpenses({ month }),
+      this.getCategories(),
+    ]);
+
+    const catMap = new Map(categories.map((c) => [c.id, c]));
+    const incomeItems = expenses.filter((e) => e.type === 'income');
+    const expenseItems = expenses.filter((e) => e.type === 'expense');
+
+    const totalIncome = incomeItems.reduce((s, e) => s + Number(e.amount), 0);
+    const totalExpenses = expenseItems.reduce((s, e) => s + Number(e.amount), 0);
+
+    const byCategoryMap: Record<string, { total: number; color: string }> = {};
+    expenseItems.forEach((e) => {
+      const name = e.category_id ? catMap.get(e.category_id)?.name : undefined;
+      const label = name || 'Sin categoría';
+      const cat = e.category_id ? catMap.get(e.category_id) : undefined;
+      if (!byCategoryMap[label]) byCategoryMap[label] = { total: 0, color: cat?.color ?? '#64748b' };
+      byCategoryMap[label].total += Number(e.amount);
+    });
+
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const day = Math.min(now.getDate(), daysInMonth);
+
+    const sorted = [...expenseItems].sort((a, b) => Number(b.amount) - Number(a.amount));
+
+    return {
+      totalExpenses,
+      totalIncome,
+      balance: totalIncome - totalExpenses,
+      byCategory: Object.entries(byCategoryMap).map(([k, v]) => ({ category_name: k, ...v })),
+      expenseCount: expenseItems.length,
+      dailyAverage: day > 0 ? totalExpenses / day : 0,
+      topExpenses: sorted.slice(0, 5),
+    };
+  },
+
+  async getPreviousMonthSummary(): Promise<MonthSummary | null> {
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const month = prev.toISOString().slice(0, 7);
+    const items = await this.getExpenses({ month });
+    if (items.length === 0) return null;
+    return this.getMonthSummary(month);
   },
 
   async addExpense(expense: Omit<Expense, 'id' | 'created_at'>): Promise<Expense> {
-    const raw = await AsyncStorage.getItem(KEYS.expenses);
-    const all: Expense[] = raw ? JSON.parse(raw) : [];
+    const all = getAll(await AsyncStorage.getItem(KEYS.expenses));
     const newExpense: Expense = {
       ...expense,
       id: await getNextId(KEYS.expensesCounter),
       created_at: new Date().toISOString(),
     };
     all.push(newExpense);
-    await AsyncStorage.setItem(KEYS.expenses, JSON.stringify(all));
+    await saveAll(all);
     return newExpense;
   },
 
+  async updateExpense(id: number, updates: Partial<Omit<Expense, 'id' | 'created_at'>>): Promise<Expense | null> {
+    const all = getAll(await AsyncStorage.getItem(KEYS.expenses));
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx === -1) return null;
+    all[idx] = { ...all[idx], ...updates };
+    await saveAll(all);
+    return all[idx];
+  },
+
   async deleteExpense(id: number): Promise<void> {
-    const raw = await AsyncStorage.getItem(KEYS.expenses);
-    const all: Expense[] = raw ? JSON.parse(raw) : [];
-    const filtered = all.filter((e) => e.id !== id);
-    await AsyncStorage.setItem(KEYS.expenses, JSON.stringify(filtered));
+    const all = getAll(await AsyncStorage.getItem(KEYS.expenses));
+    await saveAll(all.filter((e) => e.id !== id));
   },
 
   async getBudget(month: string): Promise<MonthlyBudget | null> {

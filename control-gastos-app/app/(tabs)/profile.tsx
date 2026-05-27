@@ -9,7 +9,10 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
+import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -62,13 +65,29 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleLock() {
+    const existing = await SecureStore.getItemAsync('app_pin');
+    if (existing) {
+      Alert.alert('Protección', '¿Quitar el bloqueo con PIN?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Quitar', style: 'destructive', onPress: async () => {
+          await SecureStore.deleteItemAsync('app_pin');
+          await SecureStore.deleteItemAsync('biometric_enabled');
+          Alert.alert('Listo', 'Protección eliminada');
+        }},
+      ]);
+    } else {
+      router.push('/lock');
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>💰</Text>
@@ -76,6 +95,14 @@ export default function ProfileScreen() {
             <Text style={[styles.email, { color: colors.text }]}>Control de Gastos</Text>
             <Text style={[styles.subtitle, { color: colors.muted }]}>App local - tus datos están en este dispositivo</Text>
           </View>
+
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={handleLock}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>🔒 Protección</Text>
+            <Text style={[styles.label, { color: colors.muted }]}>Bloqueo con PIN y huella digital</Text>
+          </TouchableOpacity>
 
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -104,14 +131,15 @@ export default function ProfileScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 24 },
+  container: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 40 },
   card: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
   avatarCircle: {
     width: 64,
