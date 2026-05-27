@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   Alert,
   ActivityIndicator,
   TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
@@ -59,43 +63,50 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>💰</Text>
-        </View>
-        <Text style={[styles.email, { color: colors.text }]}>Control de Gastos</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>App local - tus datos están en este dispositivo</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>💰</Text>
+            </View>
+            <Text style={[styles.email, { color: colors.text }]}>Control de Gastos</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>App local - tus datos están en este dispositivo</Text>
+          </View>
 
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Presupuesto Mensual
-        </Text>
-        <Text style={[styles.label, { color: colors.muted }]}>
-          Define cuánto planeas gastar este mes
-        </Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
-          placeholder="$0.00"
-          placeholderTextColor={colors.muted}
-          value={budgetAmount}
-          onChangeText={(t) => setBudgetAmount(t.replace(/[^0-9.,]/g, ''))}
-          keyboardType="decimal-pad"
-        />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.tint, opacity: saving ? 0.7 : 1 }]}
-          onPress={saveBudget}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Guardar Presupuesto</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Presupuesto Mensual
+            </Text>
+            <Text style={[styles.label, { color: colors.muted }]}>
+              Define cuánto planeas gastar este mes
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+              placeholder="$0.00"
+              placeholderTextColor={colors.muted}
+              value={budgetAmount}
+              onChangeText={(t) => setBudgetAmount(t.replace(/[^0-9.,]/g, ''))}
+              keyboardType="decimal-pad"
+            />
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.tint, opacity: saving ? 0.7 : 1 }]}
+              onPress={saveBudget}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Guardar Presupuesto</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
