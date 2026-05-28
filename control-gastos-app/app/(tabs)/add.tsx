@@ -15,7 +15,7 @@ import { usePreventRemove } from '@react-navigation/native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, Category } from '@/lib/database';
+import { db, Category, formatAmountInput } from '@/lib/database';
 import { useExpenseStore } from '@/store/useExpenseStore';
 
 const categoryIcons: Record<string, string> = {
@@ -92,7 +92,7 @@ export default function AddExpenseScreen() {
     const expense = all.find((e) => e.id === id);
     if (!expense) return;
     setType(expense.type);
-    setAmount(String(Number(expense.amount)));
+    setAmount(formatAmountInput(String(Number(expense.amount))));
     setDescription(expense.description ?? '');
     setDate(new Date(expense.date + 'T12:00:00'));
     if (expense.category_id) {
@@ -121,7 +121,7 @@ export default function AddExpenseScreen() {
   }
 
   async function handleSubmit() {
-    const numAmount = parseFloat(amount.replace(',', '.'));
+    const numAmount = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
       Alert.alert('Error', 'Ingresa un monto válido');
       return;
@@ -199,7 +199,7 @@ export default function AddExpenseScreen() {
             placeholder="$0.00"
             placeholderTextColor={colors.muted}
             value={amount}
-            onChangeText={(t) => setAmount(t.replace(/[^0-9.,]/g, ''))}
+            onChangeText={(t) => setAmount(formatAmountInput(t))}
             keyboardType="decimal-pad"
             autoFocus={!isEditing}
           />

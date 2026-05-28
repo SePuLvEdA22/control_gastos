@@ -15,7 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, MonthlyBudget, toLocalMonth } from '@/lib/database';
+import { db, MonthlyBudget, toLocalMonth, formatAmountInput } from '@/lib/database';
 import { useExpenseStore } from '@/store/useExpenseStore';
 
 export default function ProfileScreen() {
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
       ]);
       if (budgetData) {
         setBudget(budgetData);
-        setBudgetAmount(String(Number(budgetData.amount)));
+        setBudgetAmount(formatAmountInput(String(Number(budgetData.amount))));
       }
       setTotalExpenses(allExpenses.length);
       setTotalCategories(categories.length);
@@ -59,7 +59,7 @@ export default function ProfileScreen() {
   }
 
   async function handleSaveBudget() {
-    const num = parseFloat(budgetAmount.replace(',', '.'));
+    const num = parseFloat(budgetAmount.replace(/\./g, '').replace(',', '.'));
     if (isNaN(num) || num <= 0) {
       Alert.alert('Error', 'Ingresa un monto válido');
       return;
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
             placeholder="$0"
             placeholderTextColor={colors.muted}
             value={budgetAmount}
-            onChangeText={(t) => setBudgetAmount(t.replace(/[^0-9.,]/g, ''))}
+            onChangeText={(t) => setBudgetAmount(formatAmountInput(t))}
             keyboardType="decimal-pad"
           />
           <TouchableOpacity

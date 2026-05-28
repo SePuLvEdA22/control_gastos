@@ -47,6 +47,15 @@ export function toLocalMonth(d: Date): string {
   return `${y}-${m}`;
 }
 
+export function formatAmountInput(text: string): string {
+  const raw = text.replace(/[^0-9,]/g, '');
+  const parts = raw.split(',');
+  const normalized = parts.slice(0, 2).join(',');
+  const [intStr, decStr] = normalized.split(',');
+  const formattedInt = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return decStr !== undefined ? `${formattedInt},${decStr}` : formattedInt;
+}
+
 const KEYS = {
   categories: '@categories',
   expenses: '@expenses',
