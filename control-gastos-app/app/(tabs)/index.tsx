@@ -112,22 +112,22 @@ export default function DashboardScreen() {
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.row}>
           <View style={styles.statItem}>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Gastos</Text>
             <Text style={[styles.statValue, { color: colors.tint }]}>
               {summary.expenseCount}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Gastos</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.tint }]}>
-              ${summary.dailyAverage.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
-            </Text>
             <Text style={[styles.statLabel, { color: colors.muted }]}>Promedio/día</Text>
+            <Text style={[styles.statValue, { color: colors.tint }]}>
+              ${summary.dailyAverage.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </Text>
           </View>
           <View style={styles.statItem}>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Vs mes ant.</Text>
             <Text style={[styles.statValue, { color: vsPrev !== null ? (vsPrev > 0 ? colors.error : colors.success) : colors.muted }]}>
               {vsPrev !== null ? `${vsPrev > 0 ? '+' : ''}${vsPrev.toFixed(0)}%` : '—'}
             </Text>
-            <Text style={[styles.statLabel, { color: colors.muted }]}>Vs mes ant.</Text>
           </View>
         </View>
       </View>
@@ -222,8 +222,8 @@ const styles = StyleSheet.create({
   halfLabel: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
   halfAmount: { fontSize: 22, fontWeight: 'bold' },
   statItem: { flex: 1, alignItems: 'center', backgroundColor: 'transparent' },
+  statLabel: { fontSize: 12, marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 12, marginTop: 2 },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, backgroundColor: 'transparent' },
   budgetAmount: { fontSize: 18, fontWeight: '600' },
   progressBar: { height: 8, borderRadius: 4, overflow: 'hidden' },

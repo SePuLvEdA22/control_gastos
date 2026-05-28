@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
@@ -60,17 +60,6 @@ export default function DonutChart({ data, size = 200, strokeWidth = 40 }: Donut
             );
           })}
         </G>
-        <SvgText
-          x={center}
-          y={center}
-          textAnchor="middle"
-          fontSize={size * 0.11}
-          fontWeight="bold"
-          fill={colors.text}
-          dy={size * 0.04}
-        >
-          ${total.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
-        </SvgText>
       </Svg>
       <View style={styles.legend}>
         {data.map((item, i) => (
@@ -84,6 +73,12 @@ export default function DonutChart({ data, size = 200, strokeWidth = 40 }: Donut
             </Text>
           </View>
         ))}
+        <View style={[styles.totalRow, { borderTopColor: colors.border }]}>
+          <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
+          <Text style={[styles.totalValue, { color: colors.text }]}>
+            ${total.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -101,4 +96,10 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   legendLabel: { fontSize: 14 },
   legendValue: { fontSize: 14, fontWeight: '600' },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 8, marginTop: 8, borderTopWidth: 1,
+  },
+  totalLabel: { fontSize: 14, fontWeight: '600' },
+  totalValue: { fontSize: 14, fontWeight: '700' },
 });
