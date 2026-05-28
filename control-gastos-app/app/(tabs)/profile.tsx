@@ -15,7 +15,8 @@ import * as SecureStore from 'expo-secure-store';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, MonthlyBudget } from '@/lib/database';
+import { db, MonthlyBudget, toLocalMonth } from '@/lib/database';
+import { useExpenseStore } from '@/store/useExpenseStore';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -25,7 +26,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const monthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+  const monthStart = `${toLocalMonth(new Date())}-01`;
+  const { saveBudget } = useExpenseStore();
 
   useEffect(() => {
     loadProfile();
@@ -45,7 +47,7 @@ export default function ProfileScreen() {
     }
   }
 
-  async function saveBudget() {
+  async function handleSaveBudget() {
     const num = parseFloat(budgetAmount.replace(',', '.'));
     if (isNaN(num) || num <= 0) {
       Alert.alert('Error', 'Ingresa un monto válido');
@@ -54,7 +56,7 @@ export default function ProfileScreen() {
 
     setSaving(true);
     try {
-      await db.setBudget(num, monthStart);
+      await saveBudget(num, monthStart);
       Alert.alert('✅ Listo', 'Presupuesto guardado');
       loadProfile();
     } catch (err: any) {
@@ -124,7 +126,7 @@ export default function ProfileScreen() {
             />
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.tint, opacity: saving ? 0.7 : 1 }]}
-              onPress={saveBudget}
+               onPress={handleSaveBudget}
               disabled={saving}
             >
               {saving ? (

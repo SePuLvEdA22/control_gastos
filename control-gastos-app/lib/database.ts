@@ -34,6 +34,19 @@ export interface MonthSummary {
   topExpenses: Expense[];
 }
 
+export function toLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function toLocalMonth(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
 const KEYS = {
   categories: '@categories',
   expenses: '@expenses',
@@ -76,7 +89,9 @@ async function getNextId(counterKey: string): Promise<number> {
 function getMonthBounds(month: string): { start: string; end: string } {
   const [y, m] = month.split('-').map(Number);
   const start = `${month}-01`;
-  const end = new Date(y, m, 1).toISOString().slice(0, 10);
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  const end = `${ny}-${String(nm).padStart(2, '0')}-01`;
   return { start, end };
 }
 
@@ -171,10 +186,17 @@ export const db = {
     };
   },
 
-  async getPreviousMonthSummary(): Promise<MonthSummary | null> {
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const month = prev.toISOString().slice(0, 7);
+  async getPreviousMonthSummary(currentMonth?: string): Promise<MonthSummary | null> {
+    let month: string;
+    if (currentMonth) {
+      const [y, m] = currentMonth.split('-').map(Number);
+      const prev = new Date(y, m - 2, 1);
+      month = toLocalMonth(prev);
+    } else {
+      const prev = new Date();
+      prev.setMonth(prev.getMonth() - 1);
+      month = toLocalMonth(prev);
+    }
     const items = await this.getExpenses({ month });
     if (items.length === 0) return null;
     return this.getMonthSummary(month);

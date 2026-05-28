@@ -12,7 +12,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, Expense, Category } from '@/lib/database';
+import { db, Expense, Category, toLocalMonth } from '@/lib/database';
+import { useExpenseStore } from '@/store/useExpenseStore';
 
 interface ExpenseItem extends Expense {
   category_name?: string;
@@ -25,18 +26,18 @@ export default function HistoryScreen() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(toLocalMonth(new Date()));
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
+  const { deleteExpense: deleteExpenseFromStore } = useExpenseStore();
 
-  const fetchExpenses = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
+  const fetchExpenses = useCallback(async (searchQuery = '') => {
     try {
       const cats = await db.getCategories();
       setCategories(cats);
 
-      const rawExpenses = query
-        ? await db.searchExpenses({ month, query })
+      const rawExpenses = searchQuery
+        ? await db.searchExpenses({ month, query: searchQuery })
         : await db.getExpenses({ month });
 
       const catMap = new Map(cats.map((c) => [c.id, c]));
@@ -50,30 +51,30 @@ export default function HistoryScreen() {
     } catch (err) {
       console.error(err);
     } finally {
-      if (showLoader) setLoading(false);
+      setLoading(false);
       setRefreshing(false);
     }
-  }, [month, query]);
+  }, [month]);
 
   useEffect(() => {
-    fetchExpenses(true);
-  }, [fetchExpenses]);
+    fetchExpenses(query);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      fetchExpenses(false);
-    }, [fetchExpenses])
+      fetchExpenses(query);
+    }, [fetchExpenses, query])
   );
 
   const changeMonth = (delta: number) => {
     const [y, m] = month.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
-    setMonth(d.toISOString().slice(0, 7));
+    setMonth(toLocalMonth(d));
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchExpenses();
+    fetchExpenses(query);
   };
 
   async function deleteExpense(id: number) {
@@ -81,7 +82,7 @@ export default function HistoryScreen() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
-        onPress: async () => { await db.deleteExpense(id); fetchExpenses(); },
+        onPress: async () => { await deleteExpenseFromStore(id); fetchExpenses(query); },
       },
     ]);
   }
@@ -108,9 +109,7 @@ export default function HistoryScreen() {
     month: 'long', year: 'numeric',
   });
 
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const totalIncome = expenses.filter((e) => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
-  const totalExpenses = expenses.filter((e) => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
+
 
   if (loading) {
     return (
@@ -129,11 +128,6 @@ export default function HistoryScreen() {
         <View style={styles.monthCenter}>
           <Text style={[styles.monthText, { color: colors.text }]}>
             {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
-          </Text>
-          <Text style={[styles.totalText, { color: colors.muted }]}>
-            {totalIncome > 0 && `💰 $${totalIncome.toLocaleString('es-ES', { minimumFractionDigits: 2 })}  `}
-            💸 ${totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-            {totalIncome > 0 && `  = $${(totalIncome - totalExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`}
           </Text>
         </View>
         <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}>
@@ -216,7 +210,6 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 32, fontWeight: '300' },
   monthCenter: { flex: 1, alignItems: 'center', backgroundColor: 'transparent' },
   monthText: { fontSize: 17, fontWeight: '600', textTransform: 'capitalize' },
-  totalText: { fontSize: 12, marginTop: 2 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', marginHorizontal: 16,
     marginBottom: 8, paddingHorizontal: 12, height: 42, borderRadius: 12, borderWidth: 1,

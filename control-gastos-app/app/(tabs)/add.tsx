@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   TextInput,
@@ -14,7 +14,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, Category, Expense } from '@/lib/database';
+import { db, Category } from '@/lib/database';
+import { useExpenseStore } from '@/store/useExpenseStore';
 
 const categoryIcons: Record<string, string> = {
   cart: '🛒', bus: '🚌', house: '🏠', bolt: '⚡', heart: '❤️',
@@ -22,7 +23,10 @@ const categoryIcons: Record<string, string> = {
 };
 
 function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function formatDisplay(dateStr: string): string {
@@ -44,6 +48,12 @@ export default function AddExpenseScreen() {
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const { addExpense, updateExpense } = useExpenseStore();
+  const scrollRef = useRef<ScrollView>(null);
+
+  const scrollToDescription = useCallback(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  }, []);
 
   useEffect(() => {
     db.getCategories().then((data) => {
@@ -91,7 +101,7 @@ export default function AddExpenseScreen() {
     setLoading(true);
     try {
       if (isEditing && editId) {
-        await db.updateExpense(Number(editId), {
+        await updateExpense(Number(editId), {
           type, amount: numAmount,
           description: description.trim() || null,
           category_id: selectedCategory?.id ?? null,
@@ -101,7 +111,7 @@ export default function AddExpenseScreen() {
           { text: 'Ok', onPress: () => router.back() },
         ]);
       } else {
-        await db.addExpense({
+        await addExpense({
           type, amount: numAmount,
           description: description.trim() || null,
           category_id: selectedCategory?.id ?? null,
@@ -125,8 +135,10 @@ export default function AddExpenseScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 50 : 0}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -232,6 +244,7 @@ export default function AddExpenseScreen() {
             placeholderTextColor={colors.muted}
             value={description}
             onChangeText={setDescription}
+            onFocus={scrollToDescription}
             multiline
             numberOfLines={2}
           />
@@ -257,7 +270,7 @@ export default function AddExpenseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContent: { padding: 16, paddingBottom: 120 },
   card: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16 },
   label: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
   amountInput: { fontSize: 40, fontWeight: 'bold', textAlign: 'center', paddingVertical: 8 },

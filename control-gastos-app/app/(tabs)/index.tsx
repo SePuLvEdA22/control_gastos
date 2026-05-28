@@ -9,50 +9,40 @@ import {
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { db, MonthSummary } from '@/lib/database';
+import { useExpenseStore } from '@/store/useExpenseStore';
+import { toLocalMonth } from '@/lib/database';
+import { router } from 'expo-router';
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
-  const [loading, setLoading] = useState(true);
+  const { summary, prevSummary, budgetAmount, fetchDashboard } = useExpenseStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [summary, setSummary] = useState<MonthSummary | null>(null);
-  const [prevSummary, setPrevSummary] = useState<MonthSummary | null>(null);
-  const [budgetAmount, setBudgetAmount] = useState<number | null>(null);
-
-  const [monthLabel, setMonthLabel] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(toLocalMonth(new Date()));
 
   const fetchData = useCallback(async () => {
-    const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7);
-    setMonthLabel(now.toLocaleString('es-ES', { month: 'long', year: 'numeric' }));
-    try {
-      const [data, prevData, budget] = await Promise.all([
-        db.getMonthSummary(currentMonth),
-        db.getPreviousMonthSummary(),
-        db.getBudget(`${currentMonth}-01`),
-      ]);
-      setSummary(data);
-      setPrevSummary(prevData);
-      setBudgetAmount(budget ? Number(budget.amount) : null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+    await fetchDashboard(selectedMonth);
+    setRefreshing(false);
+  }, [fetchDashboard, selectedMonth]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const changeMonth = (delta: number) => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setSelectedMonth(toLocalMonth(d));
+  };
+
+  const monthLabel = new Date(selectedMonth + '-01').toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
   };
 
-  if (loading || !summary) {
+  if (!summary) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.tint} />
@@ -73,9 +63,17 @@ export default function DashboardScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Text style={[styles.monthTitle, { color: colors.text }]}>
-        {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
-      </Text>
+      <View style={styles.monthPicker}>
+        <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}>
+          <Text style={[styles.monthArrowText, { color: colors.tint }]}>‹</Text>
+        </TouchableOpacity>
+        <Text style={[styles.monthTitle, { color: colors.text }]}>
+          {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
+        </Text>
+        <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}>
+          <Text style={[styles.monthArrowText, { color: colors.tint }]}>›</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.label, { color: colors.muted }]}>Balance del Mes</Text>
@@ -87,7 +85,7 @@ export default function DashboardScreen() {
         </Text>
       </View>
 
-      <View style={styles.row}>
+      <View style={[styles.row, { marginBottom: 16 }]}>
         <View style={[styles.halfCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.halfLabel, { color: colors.muted }]}>Ingresos</Text>
           <Text style={[styles.halfAmount, { color: colors.success }]}>
@@ -177,7 +175,11 @@ export default function DashboardScreen() {
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Gastos</Text>
           {summary.topExpenses.map((expense) => (
-            <View key={expense.id} style={styles.expenseRow}>
+            <TouchableOpacity
+              key={expense.id}
+              style={styles.expenseRow}
+              onPress={() => router.push({ pathname: '/(tabs)/add', params: { id: String(expense.id) } })}
+            >
               <View style={styles.expenseLeft}>
                 <View style={styles.topRow}>
                   <Text style={[styles.topAmount, { color: colors.error }]}>
@@ -191,7 +193,7 @@ export default function DashboardScreen() {
                   {new Date(expense.date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -204,7 +206,10 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  monthTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, textTransform: 'capitalize' },
+  monthPicker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, gap: 16 },
+  monthArrow: { padding: 8 },
+  monthArrowText: { fontSize: 32, fontWeight: '300' },
+  monthTitle: { fontSize: 24, fontWeight: 'bold', textTransform: 'capitalize' },
   card: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16 },
   label: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
