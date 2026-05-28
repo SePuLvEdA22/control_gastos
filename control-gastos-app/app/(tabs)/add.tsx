@@ -10,7 +10,8 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -40,6 +41,7 @@ export default function AddExpenseScreen() {
 
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
+  const navigation = useNavigation();
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -50,6 +52,26 @@ export default function AddExpenseScreen() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const { addExpense, updateExpense } = useExpenseStore();
   const scrollRef = useRef<ScrollView>(null);
+  const [originalValues, setOriginalValues] = useState<{
+    type: string; amount: string; description: string; categoryId: number | null; date: string;
+  } | null>(null);
+
+  const isDirty = isEditing
+    ? originalValues !== null && (
+        type !== originalValues.type ||
+        amount !== originalValues.amount ||
+        description !== originalValues.description ||
+        selectedCategory?.id !== originalValues.categoryId ||
+        formatDate(date) !== originalValues.date
+      )
+    : amount !== '' || description !== '' || selectedCategory !== null;
+
+  usePreventRemove(!loading && isDirty, (action) => {
+    Alert.alert('Descartar cambios', '¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Salir', style: 'destructive', onPress: () => navigation.dispatch(action as any) },
+    ]);
+  });
 
   const scrollToDescription = useCallback(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
@@ -77,6 +99,13 @@ export default function AddExpenseScreen() {
       const cat = cats.find((c) => c.id === expense.category_id);
       if (cat) setSelectedCategory(cat);
     }
+    setOriginalValues({
+      type: expense.type,
+      amount: String(Number(expense.amount)),
+      description: expense.description ?? '',
+      categoryId: expense.category_id ?? null,
+      date: expense.date,
+    });
   }
 
   function changeDay(delta: number) {

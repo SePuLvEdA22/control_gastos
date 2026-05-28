@@ -12,6 +12,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useExpenseStore } from '@/store/useExpenseStore';
 import { toLocalMonth } from '@/lib/database';
 import { router } from 'expo-router';
+import DonutChart from '@/components/DonutChart';
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
@@ -57,6 +58,14 @@ export default function DashboardScreen() {
   const budgetProgress = budgetAmount && summary.totalExpenses > 0
     ? summary.totalExpenses / budgetAmount
     : 0;
+
+  const budgetColor = budgetProgress >= 1 ? colors.error : budgetProgress >= 0.8 ? colors.warning : colors.tint;
+
+  const budgetMessage = budgetProgress >= 1
+    ? `Excedido en $${((budgetProgress - 1) * budgetAmount!).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
+    : budgetProgress >= 0.8
+    ? `¡Cuidado! Has usado el ${(budgetProgress * 100).toFixed(1)}% de tu presupuesto`
+    : `${(budgetProgress * 100).toFixed(1)}% utilizado`;
 
   return (
     <ScrollView
@@ -137,15 +146,13 @@ export default function DashboardScreen() {
                 styles.progressFill,
                 {
                   width: `${Math.min(budgetProgress * 100, 100)}%`,
-                  backgroundColor: budgetProgress > 1 ? colors.error : colors.tint,
+                  backgroundColor: budgetColor,
                 },
               ]}
             />
           </View>
-          <Text style={[styles.progressText, { color: budgetProgress > 1 ? colors.error : colors.muted }]}>
-            {budgetProgress > 1
-              ? `Excedido en $${((budgetProgress - 1) * budgetAmount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
-              : `${(budgetProgress * 100).toFixed(1)}% utilizado`}
+          <Text style={[styles.progressText, { color: budgetColor }]}>
+            {budgetMessage}
           </Text>
         </View>
       )}
@@ -153,21 +160,15 @@ export default function DashboardScreen() {
       {summary.byCategory.length > 0 && (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Por Categoría</Text>
-          {summary.byCategory.map((cat, i) => {
-            const pct = summary.totalExpenses > 0 ? (cat.total / summary.totalExpenses) * 100 : 0;
-            return (
-              <View key={i} style={styles.categoryRow}>
-                <View style={styles.categoryLeft}>
-                  <View style={[styles.dot, { backgroundColor: cat.color }]} />
-                  <Text style={[styles.categoryName, { color: colors.text }]}>{cat.category_name}</Text>
-                </View>
-                <Text style={[styles.categoryAmount, { color: colors.text }]}>
-                  ${cat.total.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                  <Text style={[styles.categoryPct, { color: colors.muted }]}> ({pct.toFixed(0)}%)</Text>
-                </Text>
-              </View>
-            );
-          })}
+          <DonutChart
+            data={summary.byCategory.map((cat) => ({
+              label: cat.category_name,
+              value: cat.total,
+              color: cat.color || colors.tint,
+            }))}
+            size={180}
+            strokeWidth={35}
+          />
         </View>
       )}
 
