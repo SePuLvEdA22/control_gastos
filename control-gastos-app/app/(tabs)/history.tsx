@@ -94,7 +94,7 @@ export default function HistoryScreen() {
   function handleTap(expense: ExpenseItem) {
     Alert.alert(
       expense.type === 'income' ? '💰 Ingreso' : '💸 Gasto',
-      `Monto: $${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}\n${
+      `Monto: $${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 0 })}\n${
         expense.description || 'Sin descripción'
       }\n${expense.category_name || 'Sin categoría'}\n${new Date(expense.date + 'T12:00:00').toLocaleDateString('es-ES')}`,
       [
@@ -179,7 +179,7 @@ export default function HistoryScreen() {
                       {expense.category_name || 'Sin categoría'}
                     </Text>
                     <Text style={[styles.expenseAmount, { color: expense.type === 'income' ? colors.success : colors.text }]}>
-                      {expense.type === 'income' ? '+' : '-'}${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                      {expense.type === 'income' ? '+' : '-'}${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 0 })}
                     </Text>
                   </View>
                   <Text style={[styles.expenseDesc, { color: colors.text }]} numberOfLines={1}>

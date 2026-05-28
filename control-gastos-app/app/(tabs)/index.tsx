@@ -62,7 +62,7 @@ export default function DashboardScreen() {
   const budgetColor = budgetProgress >= 1 ? colors.error : budgetProgress >= 0.8 ? colors.warning : colors.tint;
 
   const budgetMessage = budgetProgress >= 1
-    ? `Excedido en $${((budgetProgress - 1) * budgetAmount!).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
+    ? `Excedido en $${((budgetProgress - 1) * budgetAmount!).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`
     : budgetProgress >= 0.8
     ? `¡Cuidado! Has usado el ${(budgetProgress * 100).toFixed(1)}% de tu presupuesto`
     : `${(budgetProgress * 100).toFixed(1)}% utilizado`;
@@ -87,7 +87,7 @@ export default function DashboardScreen() {
       <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.label, { color: colors.muted }]}>Balance del Mes</Text>
         <Text style={[styles.balanceAmount, { color: summary.balance >= 0 ? colors.success : colors.error }]}>
-          ${Math.abs(summary.balance).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+          ${Math.abs(summary.balance).toLocaleString('es-ES', { minimumFractionDigits: 0 })}
           <Text style={[styles.balanceSign, { color: summary.balance >= 0 ? colors.success : colors.error }]}>
             {summary.balance >= 0 ? ' positivo' : ' negativo'}
           </Text>
@@ -98,13 +98,13 @@ export default function DashboardScreen() {
         <View style={[styles.halfCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.halfLabel, { color: colors.muted }]}>Ingresos</Text>
           <Text style={[styles.halfAmount, { color: colors.success }]}>
-            ${summary.totalIncome.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+            ${summary.totalIncome.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
           </Text>
         </View>
         <View style={[styles.halfCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.halfLabel, { color: colors.muted }]}>Gastos</Text>
           <Text style={[styles.halfAmount, { color: colors.error }]}>
-            ${summary.totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+            ${summary.totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
           </Text>
         </View>
       </View>
@@ -137,7 +137,7 @@ export default function DashboardScreen() {
           <View style={styles.budgetHeader}>
             <Text style={[styles.label, { color: colors.muted }]}>Presupuesto Mensual</Text>
             <Text style={[styles.budgetAmount, { color: colors.text }]}>
-              ${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+              ${budgetAmount.toLocaleString('es-ES', { minimumFractionDigits: 0 })}
             </Text>
           </View>
           <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
@@ -184,7 +184,7 @@ export default function DashboardScreen() {
               <View style={styles.expenseLeft}>
                 <View style={styles.topRow}>
                   <Text style={[styles.topAmount, { color: colors.error }]}>
-                    ${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                    ${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 0 })}
                   </Text>
                   <Text style={[styles.topDesc, { color: colors.text }]} numberOfLines={1}>
                     {expense.description || 'Sin descripción'}

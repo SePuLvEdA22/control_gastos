@@ -25,6 +25,9 @@ export default function ProfileScreen() {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalCategories, setTotalCategories] = useState(0);
+  const [totalMonths, setTotalMonths] = useState(0);
 
   const monthStart = `${toLocalMonth(new Date())}-01`;
   const { saveBudget } = useExpenseStore();
@@ -35,11 +38,19 @@ export default function ProfileScreen() {
 
   async function loadProfile() {
     try {
-      const data = await db.getBudget(monthStart);
-      if (data) {
-        setBudget(data);
-        setBudgetAmount(String(Number(data.amount)));
+      const [budgetData, allExpenses, categories] = await Promise.all([
+        db.getBudget(monthStart),
+        db.getAllExpenses(),
+        db.getCategories(),
+      ]);
+      if (budgetData) {
+        setBudget(budgetData);
+        setBudgetAmount(String(Number(budgetData.amount)));
       }
+      setTotalExpenses(allExpenses.length);
+      setTotalCategories(categories.length);
+      const months = new Set(allExpenses.map((e) => e.date.slice(0, 7)));
+      setTotalMonths(months.size);
     } catch {
       // No budget yet
     } finally {
@@ -93,49 +104,82 @@ export default function ProfileScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>💰</Text>
-            </View>
-            <Text style={[styles.email, { color: colors.text }]}>Control de Gastos</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>App local - tus datos están en este dispositivo</Text>
-          </View>
+        <View style={[styles.headerCard, { backgroundColor: colors.tint + '15', borderColor: colors.tint + '30' }]}>
+          <Text style={[styles.headerIcon]}>💰</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Control de Gastos</Text>
+          <Text style={[styles.headerSub, { color: colors.muted }]}>Tus datos están seguros en este dispositivo</Text>
+        </View>
 
+        <View style={[styles.statsRow, { backgroundColor: 'transparent', marginBottom: 16 }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.statNumber, { color: colors.tint }]}>{totalExpenses}</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Gastos</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.statNumber, { color: colors.success }]}>{totalCategories}</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Categorías</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.statNumber, { color: colors.warning }]}>{totalMonths}</Text>
+            <Text style={[styles.statLabel, { color: colors.muted }]}>Meses</Text>
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>📊 Presupuesto Mensual</Text>
+          <Text style={[styles.label, { color: colors.muted }]}>
+            Define cuánto planeas gastar este mes
+          </Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+            placeholder="$0"
+            placeholderTextColor={colors.muted}
+            value={budgetAmount}
+            onChangeText={(t) => setBudgetAmount(t.replace(/[^0-9.,]/g, ''))}
+            keyboardType="decimal-pad"
+          />
           <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={handleLock}
+            style={[styles.button, { backgroundColor: colors.tint, opacity: saving ? 0.7 : 1 }]}
+            onPress={handleSaveBudget}
+            disabled={saving}
           >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>🔒 Protección</Text>
-            <Text style={[styles.label, { color: colors.muted }]}>Bloqueo con PIN y huella digital</Text>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Guardar</Text>
+            )}
           </TouchableOpacity>
+        </View>
 
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Presupuesto Mensual
-            </Text>
-            <Text style={[styles.label, { color: colors.muted }]}>
-              Define cuánto planeas gastar este mes
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
-              placeholder="$0.00"
-              placeholderTextColor={colors.muted}
-              value={budgetAmount}
-              onChangeText={(t) => setBudgetAmount(t.replace(/[^0-9.,]/g, ''))}
-              keyboardType="decimal-pad"
-            />
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.tint, opacity: saving ? 0.7 : 1 }]}
-               onPress={handleSaveBudget}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Guardar Presupuesto</Text>
-              )}
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.cardRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={handleLock}
+        >
+          <View style={[styles.cardRowLeft, { backgroundColor: 'transparent' }]}>
+            <Text style={styles.cardRowIcon}>🔒</Text>
+            <View style={{ backgroundColor: 'transparent' }}>
+              <Text style={[styles.cardRowTitle, { color: colors.text }]}>Protección</Text>
+              <Text style={[styles.cardRowSub, { color: colors.muted }]}>PIN y huella digital</Text>
+            </View>
           </View>
+          <Text style={[styles.cardRowArrow, { color: colors.muted }]}>›</Text>
+        </TouchableOpacity>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 8 }]}>ℹ️ Acerca de</Text>
+          <View style={[styles.aboutRow, { borderBottomColor: colors.border, backgroundColor: 'transparent' }]}>
+            <Text style={[styles.aboutLabel, { color: colors.muted }]}>Versión</Text>
+            <Text style={[styles.aboutValue, { color: colors.text }]}>1.0.0</Text>
+          </View>
+          <View style={[styles.aboutRow, { borderBottomColor: colors.border, backgroundColor: 'transparent' }]}>
+            <Text style={[styles.aboutLabel, { color: colors.muted }]}>Framework</Text>
+            <Text style={[styles.aboutValue, { color: colors.text }]}>Expo (React Native)</Text>
+          </View>
+          <View style={[styles.aboutRow, { borderBottomColor: colors.border, borderBottomWidth: 0, backgroundColor: 'transparent' }]}>
+            <Text style={[styles.aboutLabel, { color: colors.muted }]}>Almacenamiento</Text>
+            <Text style={[styles.aboutValue, { color: colors.text }]}>Solo en este dispositivo</Text>
+          </View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -144,22 +188,52 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 40 },
-  card: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#0891b2',
-    justifyContent: 'center',
+  card: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16 },
+  headerCard: {
+    borderRadius: 16, padding: 24, borderWidth: 1, marginBottom: 16,
     alignItems: 'center',
-    marginBottom: 12,
   },
-  avatarText: { fontSize: 28, fontWeight: 'bold', color: '#ffffff' },
-  email: { fontSize: 16, fontWeight: '600' },
-  subtitle: { fontSize: 13, marginTop: 4, textAlign: 'center' },
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
+  headerIcon: { fontSize: 36, marginBottom: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  headerSub: { fontSize: 13, marginTop: 4, textAlign: 'center' },
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  statNumber: { fontSize: 24, fontWeight: '700' },
+  statLabel: { fontSize: 12, marginTop: 2 },
+  sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
   label: { fontSize: 13, marginBottom: 12 },
-  input: { width: '100%', height: 48, borderRadius: 12, paddingHorizontal: 16, fontSize: 18, borderWidth: 1, textAlign: 'center', marginBottom: 12 },
+  input: {
+    width: '100%', height: 48, borderRadius: 12, paddingHorizontal: 16,
+    fontSize: 18, borderWidth: 1, textAlign: 'center', marginBottom: 12,
+  },
   button: { width: '100%', height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  cardRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  cardRowIcon: { fontSize: 22 },
+  cardRowTitle: { fontSize: 16, fontWeight: '600' },
+  cardRowSub: { fontSize: 13, marginTop: 1 },
+  cardRowArrow: { fontSize: 24, fontWeight: '300' },
+  aboutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  aboutLabel: { fontSize: 14 },
+  aboutValue: { fontSize: 14, fontWeight: '500' },
 });
