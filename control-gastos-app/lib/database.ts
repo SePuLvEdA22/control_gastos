@@ -81,7 +81,11 @@ function getMonthBounds(month: string): { start: string; end: string } {
 }
 
 function getAll(raw: string | null): Expense[] {
-  return raw ? JSON.parse(raw) : [];
+  try {
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function saveAll(items: Expense[]): Promise<void> {
@@ -148,9 +152,11 @@ export const db = {
       byCategoryMap[label].total += Number(e.amount);
     });
 
+    const [y, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
     const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const day = Math.min(now.getDate(), daysInMonth);
+    const isCurrentMonth = now.getFullYear() === y && now.getMonth() + 1 === m;
+    const day = isCurrentMonth ? Math.min(now.getDate(), daysInMonth) : daysInMonth;
 
     const sorted = [...expenseItems].sort((a, b) => Number(b.amount) - Number(a.amount));
 

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Keyboard,
   Alert,
   ActivityIndicator,
@@ -86,8 +85,12 @@ export default function ProfileScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>💰</Text>
@@ -131,8 +134,7 @@ export default function ProfileScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
   Alert,
@@ -50,13 +49,13 @@ export default function AddExpenseScreen() {
     db.getCategories().then((data) => {
       setCategories(data);
       setLoadingCategories(false);
+      if (editId) {
+        loadExpense(Number(editId), data);
+      }
     });
-    if (editId) {
-      loadExpense(Number(editId));
-    }
   }, []);
 
-  async function loadExpense(id: number) {
+  async function loadExpense(id: number, cats: Category[]) {
     const all = await db.getAllExpenses();
     const expense = all.find((e) => e.id === id);
     if (!expense) return;
@@ -65,7 +64,7 @@ export default function AddExpenseScreen() {
     setDescription(expense.description ?? '');
     setDate(new Date(expense.date + 'T12:00:00'));
     if (expense.category_id) {
-      const cat = categories.find((c) => c.id === expense.category_id);
+      const cat = cats.find((c) => c.id === expense.category_id);
       if (cat) setSelectedCategory(cat);
     }
   }
@@ -93,8 +92,7 @@ export default function AddExpenseScreen() {
     try {
       if (isEditing && editId) {
         await db.updateExpense(Number(editId), {
-          type,
-          amount: numAmount,
+          type, amount: numAmount,
           description: description.trim() || null,
           category_id: selectedCategory?.id ?? null,
           date: formatDate(date),
@@ -104,15 +102,17 @@ export default function AddExpenseScreen() {
         ]);
       } else {
         await db.addExpense({
-          type,
-          amount: numAmount,
+          type, amount: numAmount,
           description: description.trim() || null,
           category_id: selectedCategory?.id ?? null,
           date: formatDate(date),
         });
-        Alert.alert('✅ Listo', 'Registrado correctamente', [
-          { text: 'Ok', onPress: () => router.back() },
-        ]);
+        setAmount('');
+        setDescription('');
+        setSelectedCategory(null);
+        setDate(new Date());
+        Keyboard.dismiss();
+        Alert.alert('✅ Listo', 'Gasto registrado');
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo guardar');
@@ -126,133 +126,131 @@ export default function AddExpenseScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, type === 'expense' && { backgroundColor: colors.error + '20' }]}
-              onPress={() => setType('expense')}
-            >
-              <Text style={[styles.toggleText, { color: type === 'expense' ? colors.error : colors.muted }]}>
-                💸 Gasto
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, type === 'income' && { backgroundColor: colors.success + '20' }]}
-              onPress={() => setType('income')}
-            >
-              <Text style={[styles.toggleText, { color: type === 'income' ? colors.success : colors.muted }]}>
-                💰 Ingreso
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.muted }]}>Monto</Text>
-            <TextInput
-              style={[styles.amountInput, { color: colors.text }]}
-              placeholder="$0.00"
-              placeholderTextColor={colors.muted}
-              value={amount}
-              onChangeText={(t) => setAmount(t.replace(/[^0-9.,]/g, ''))}
-              keyboardType="decimal-pad"
-              autoFocus={!isEditing}
-            />
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.muted }]}>Fecha</Text>
-            <View style={styles.dateRow}>
-              <TouchableOpacity onPress={() => changeDay(-1)} style={styles.dateArrow}>
-                <Text style={[styles.dateArrowText, { color: colors.tint }]}>‹</Text>
-              </TouchableOpacity>
-              <Text style={[styles.dateText, { color: colors.text }]}>{formatDisplay(formatDate(date))}</Text>
-              <TouchableOpacity onPress={() => changeDay(1)} style={styles.dateArrow}>
-                <Text style={[styles.dateArrowText, { color: colors.tint }]}>›</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.dateSubRow}>
-              <TouchableOpacity onPress={() => changeMonth(-1)}>
-                <Text style={[styles.dateSubText, { color: colors.muted }]}>‹ Mes ant.</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setDate(new Date())}>
-                <Text style={[styles.dateSubText, { color: colors.tint }]}>Hoy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => changeMonth(1)}>
-                <Text style={[styles.dateSubText, { color: colors.muted }]}>Sig. mes ›</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.muted }, { marginBottom: 12 }]}>
-              Categoría
-            </Text>
-            {loadingCategories ? (
-              <ActivityIndicator color={colors.tint} />
-            ) : (
-              <View style={styles.categoryGrid}>
-                {categories.map((cat) => {
-                  const selected = selectedCategory?.id === cat.id;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        styles.categoryItem,
-                        {
-                          backgroundColor: selected && cat.color ? cat.color + '20' : colors.inputBg,
-                          borderColor: selected && cat.color ? cat.color : 'transparent',
-                        },
-                      ]}
-                      onPress={() => setSelectedCategory(selected ? null : cat)}
-                    >
-                      <Text style={styles.categoryIcon}>
-                        {cat.icon ? categoryIcons[cat.icon] || '📌' : '📌'}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.categoryLabel,
-                          { color: selected ? cat.color ?? colors.tint : colors.text },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {cat.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.muted }]}>Descripción (opcional)</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
-              placeholder={type === 'expense' ? '¿En qué gastaste?' : '¿De qué fue el ingreso?'}
-              placeholderTextColor={colors.muted}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: type === 'expense' ? colors.error : colors.success, opacity: loading ? 0.7 : 1 }]}
-            onPress={handleSubmit}
-            disabled={loading}
+            style={[styles.toggleBtn, type === 'expense' && { backgroundColor: colors.error + '20' }]}
+            onPress={() => setType('expense')}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitText}>
-                {isEditing ? 'Guardar Cambios' : type === 'expense' ? 'Registrar Gasto' : 'Registrar Ingreso'}
-              </Text>
-            )}
+            <Text style={[styles.toggleText, { color: type === 'expense' ? colors.error : colors.muted }]}>
+              💸 Gasto
+            </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+          <TouchableOpacity
+            style={[styles.toggleBtn, type === 'income' && { backgroundColor: colors.success + '20' }]}
+            onPress={() => setType('income')}
+          >
+            <Text style={[styles.toggleText, { color: type === 'income' ? colors.success : colors.muted }]}>
+              💰 Ingreso
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.muted }]}>Monto</Text>
+          <TextInput
+            style={[styles.amountInput, { color: colors.text }]}
+            placeholder="$0.00"
+            placeholderTextColor={colors.muted}
+            value={amount}
+            onChangeText={(t) => setAmount(t.replace(/[^0-9.,]/g, ''))}
+            keyboardType="decimal-pad"
+            autoFocus={!isEditing}
+          />
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.muted }]}>Fecha</Text>
+          <View style={styles.dateRow}>
+            <TouchableOpacity onPress={() => changeDay(-1)} style={styles.dateArrow}>
+              <Text style={[styles.dateArrowText, { color: colors.tint }]}>‹</Text>
+            </TouchableOpacity>
+            <Text style={[styles.dateText, { color: colors.text }]} numberOfLines={1}>
+              {formatDisplay(formatDate(date))}
+            </Text>
+            <TouchableOpacity onPress={() => changeDay(1)} style={styles.dateArrow}>
+              <Text style={[styles.dateArrowText, { color: colors.tint }]}>›</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dateSubRow}>
+            <TouchableOpacity onPress={() => changeMonth(-1)}>
+              <Text style={[styles.dateSubText, { color: colors.muted }]}>‹ Mes ant.</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setDate(new Date())}>
+              <Text style={[styles.dateSubText, { color: colors.tint }]}>Hoy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => changeMonth(1)}>
+              <Text style={[styles.dateSubText, { color: colors.muted }]}>Sig. mes ›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.muted }, { marginBottom: 12 }]}>Categoría</Text>
+          {loadingCategories ? (
+            <ActivityIndicator color={colors.tint} />
+          ) : (
+            <View style={styles.categoryGrid}>
+              {categories.map((cat) => {
+                const selected = selectedCategory?.id === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryItem,
+                      {
+                        backgroundColor: selected && cat.color ? cat.color + '20' : colors.inputBg,
+                        borderColor: selected && cat.color ? cat.color : 'transparent',
+                      },
+                    ]}
+                    onPress={() => setSelectedCategory(selected ? null : cat)}
+                  >
+                    <Text style={styles.categoryIcon}>{cat.icon ? categoryIcons[cat.icon] || '📌' : '📌'}</Text>
+                    <Text
+                      style={[styles.categoryLabel, { color: selected ? cat.color ?? colors.tint : colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.muted }]}>Descripción (opcional)</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+            placeholder={type === 'expense' ? '¿En qué gastaste?' : '¿De qué fue el ingreso?'}
+            placeholderTextColor={colors.muted}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={2}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: type === 'expense' ? colors.error : colors.success, opacity: loading ? 0.7 : 1 }]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>
+              {isEditing ? 'Guardar Cambios' : type === 'expense' ? 'Registrar Gasto' : 'Registrar Ingreso'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

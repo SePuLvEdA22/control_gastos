@@ -8,7 +8,7 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -29,7 +29,8 @@ export default function HistoryScreen() {
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const cats = await db.getCategories();
       setCategories(cats);
@@ -40,24 +41,29 @@ export default function HistoryScreen() {
 
       const catMap = new Map(cats.map((c) => [c.id, c]));
 
-const items: ExpenseItem[] = rawExpenses.map((e) => {
-    const cat = e.category_id ? catMap.get(e.category_id) : undefined;
-    return { ...e, category_name: cat?.name, category_color: cat?.color ?? undefined };
-  });
+      const items: ExpenseItem[] = rawExpenses.map((e) => {
+        const cat = e.category_id ? catMap.get(e.category_id) : undefined;
+        return { ...e, category_name: cat?.name, category_color: cat?.color ?? undefined };
+      });
 
       setExpenses(items);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
       setRefreshing(false);
     }
   }, [month, query]);
 
   useEffect(() => {
-    setLoading(true);
-    fetchExpenses();
+    fetchExpenses(true);
   }, [fetchExpenses]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchExpenses(false);
+    }, [fetchExpenses])
+  );
 
   const changeMonth = (delta: number) => {
     const [y, m] = month.split('-').map(Number);
@@ -226,12 +232,12 @@ const styles = StyleSheet.create({
     padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 8,
   },
   expenseLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, backgroundColor: 'transparent' },
-  typeIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  typeIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12, flexShrink: 0 },
   typeIconText: { fontSize: 18 },
-  expenseInfo: { flex: 1, backgroundColor: 'transparent' },
-  expenseTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent' },
-  expenseCategory: { fontSize: 12, fontWeight: '500' },
-  expenseAmount: { fontSize: 15, fontWeight: '700' },
+  expenseInfo: { flex: 1, backgroundColor: 'transparent', minWidth: 0 },
+  expenseTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', gap: 8 },
+  expenseCategory: { fontSize: 12, fontWeight: '500', flexShrink: 1 },
+  expenseAmount: { fontSize: 15, fontWeight: '700', flexShrink: 0, textAlign: 'right' },
   expenseDesc: { fontSize: 14, marginTop: 1 },
   expenseDate: { fontSize: 11, marginTop: 1 },
 });

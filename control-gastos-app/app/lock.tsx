@@ -33,21 +33,22 @@ export default function LockScreen() {
     const existing = await SecureStore.getItemAsync(PIN_KEY);
     setStoredPin(existing);
 
-    if (existing) {
-      const bio = await SecureStore.getItemAsync(BIOMETRIC_ENABLED);
-      if (bio === 'true') {
-        const compatible = await LocalAuthentication.hasHardwareAsync();
-        if (compatible) {
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: 'Desbloquear Control de Gastos',
-          });
-          if (result.success) {
-            router.replace('/(tabs)');
-            return;
+      if (existing) {
+        const bio = await SecureStore.getItemAsync(BIOMETRIC_ENABLED);
+        if (bio === 'true') {
+          const compatible = await LocalAuthentication.hasHardwareAsync();
+          if (compatible) {
+            const result = await LocalAuthentication.authenticateAsync({
+              promptMessage: 'Desbloquear Control de Gastos',
+            });
+            if (result.success) {
+              router.replace('/(tabs)');
+              return;
+            }
+            Alert.alert('Biometría no disponible', 'Usa tu PIN para desbloquear');
           }
         }
       }
-    }
     setLoading(false);
   }
 

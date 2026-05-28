@@ -20,11 +20,12 @@ export default function DashboardScreen() {
   const [prevSummary, setPrevSummary] = useState<MonthSummary | null>(null);
   const [budgetAmount, setBudgetAmount] = useState<number | null>(null);
 
-  const now = new Date();
-  const currentMonth = now.toISOString().slice(0, 7);
-  const monthName = now.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+  const [monthLabel, setMonthLabel] = useState('');
 
   const fetchData = useCallback(async () => {
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7);
+    setMonthLabel(now.toLocaleString('es-ES', { month: 'long', year: 'numeric' }));
     try {
       const [data, prevData, budget] = await Promise.all([
         db.getMonthSummary(currentMonth),
@@ -40,7 +41,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentMonth]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -73,7 +74,7 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Text style={[styles.monthTitle, { color: colors.text }]}>
-        {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+        {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
       </Text>
 
       <View style={[styles.balanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -178,9 +179,14 @@ export default function DashboardScreen() {
           {summary.topExpenses.map((expense) => (
             <View key={expense.id} style={styles.expenseRow}>
               <View style={styles.expenseLeft}>
-                <Text style={[styles.expenseCategory, { color: colors.muted }]}>
-                  ${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })} — {expense.description || 'Sin descripción'}
-                </Text>
+                <View style={styles.topRow}>
+                  <Text style={[styles.topAmount, { color: colors.error }]}>
+                    ${Number(expense.amount).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                  </Text>
+                  <Text style={[styles.topDesc, { color: colors.text }]} numberOfLines={1}>
+                    {expense.description || 'Sin descripción'}
+                  </Text>
+                </View>
                 <Text style={[styles.expenseDesc, { color: colors.text }]}>
                   {new Date(expense.date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                 </Text>
@@ -203,7 +209,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '600', marginBottom: 16 },
   balanceCard: { borderRadius: 16, padding: 20, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
-  balanceAmount: { fontSize: 34, fontWeight: 'bold' },
+  balanceAmount: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', flexShrink: 1 },
   balanceSign: { fontSize: 16, fontWeight: '500' },
   row: { flexDirection: 'row', gap: 12, backgroundColor: 'transparent', marginBottom: 0 },
   halfCard: { flex: 1, borderRadius: 16, padding: 16, borderWidth: 1, alignItems: 'center' },
@@ -227,4 +233,7 @@ const styles = StyleSheet.create({
   expenseLeft: { backgroundColor: 'transparent' },
   expenseCategory: { fontSize: 14, fontWeight: '500' },
   expenseDesc: { fontSize: 12, marginTop: 1 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'transparent' },
+  topAmount: { fontSize: 15, fontWeight: '700', flexShrink: 0 },
+  topDesc: { fontSize: 14, flexShrink: 1 },
 });
